@@ -1,0 +1,26 @@
+set export := true
+
+source := justfile_directory() + "/src"
+tests := justfile_directory() + "/tests"
+release := `git tag -l --sort=-creatordate | head -n 1`
+
+# For lazy people
+alias b := build
+alias t := test
+alias r := run
+
+# Lists all availiable targets
+default:
+    just --list
+
+# Builds the project
+build:
+    gleam build
+
+# Runs the project
+run:
+    gleam run
+
+# Runs testing suite
+test:
+    gleam test
