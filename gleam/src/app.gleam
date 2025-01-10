@@ -1,51 +1,33 @@
 import app/router
+import app/settings.{get_settings, read_connection_uri}
 import app/web.{Context}
 
 import gleam/erlang/process
-import gleam/option.{Some}
 
-import dot_env
 import dot_env/env
+import filepath.{join}
 import mist
-import pog
 import wisp
 import wisp/wisp_mist
 
 pub fn main() {
   wisp.configure_logger()
 
-  dot_env.new()
-  |> dot_env.set_path(".env")
-  |> dot_env.set_debug(False)
-  |> dot_env.load()
-
-  let port = 8000
-
-  let assert Ok(secret_key) = env.get_string("APP_SECRET_KEY")
-  let assert Ok(pg_host) = env.get_string("PG_HOSTNAME")
-  let assert Ok(pg_database) = env.get_string("PG_DATABASE")
-  let assert Ok(pg_user) = env.get_string("PG_USER")
-  let assert Ok(pg_password) = env.get_string("PG_PASSWORD")
+  // TODO: This is a big hack, couldn't find an abs path function
+  let assert Ok(pwd) = env.get_string("PWD")
+  let assert Ok(settings) = get_settings(join(pwd, ".env"))
 
   // Start a database connection pool.
-  // Typically you will want to create one pool for use in your program
-  let _db =
-    pog.default_config()
-    |> pog.host(pg_host)
-    |> pog.database(pg_database)
-    |> pog.user(pg_user)
-    |> pog.password(Some(pg_password))
-    |> pog.pool_size(15)
-    |> pog.connect
+  let assert Ok(_conn) = read_connection_uri(settings.db_uri)
 
   let ctx = Context(static_directory: static_dir())
 
   let handler = router.handle_request(_, ctx)
 
   let assert Ok(_) =
-    wisp_mist.handler(handler, secret_key)
+    wisp_mist.handler(handler, settings.secret_key)
     |> mist.new
-    |> mist.port(port)
+    |> mist.port(settings.port)
     |> mist.start_http
 
   process.sleep_forever()
