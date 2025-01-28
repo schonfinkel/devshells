@@ -3,60 +3,70 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+
+    flake-utils = {
+      url = "github:numtide/flake-utils/v1.0.0";
+    };
+
     devenv = {
       url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    treefmt-nix.url = "github:numtide/treefmt-nix";
   };
 
   outputs =
-    inputs@{
-      self,
-      devenv,
-      nixpkgs,
-      ...
-    }:
-    let
-      # System types to support.
-      supportedSystems = [
-        "x86_64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
-      ];
-
-      # Helper function to generate an attrset '{ x86_64-linux = f "x86_64-linux"; ... }'.
-      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-
-      # Nixpkgs instantiated for supported system types.
-      nixpkgsFor = forAllSystems (
-        system:
-        import nixpkgs {
-          inherit system;
-        }
-      );
-    in
     {
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgsFor."${system}";
-          name = "sample";
-          version = "0.1.0";
-        in rec
-        {
+      self,
+      nixpkgs,
+      devenv,
+      flake-utils,
+      treefmt-nix,
+      ...
+    }@inputs:
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+          config = {
+            allowUnfree = true;
+          };
+        };
+
+        treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
+
+        dotnet = with pkgs.dotnetCorePackages; combinePackages [
+          sdk_8_0
+        ];
+
+        tooling = with pkgs; [
+          bash
+          just
+
+          # for dotnet
+          netcoredbg
+          fsautocomplete
+          fantomas
+        ];
+
+        app_name = "app";
+        app_version = "0.0.1";
+      in
+      {
+        # nix build
+        packages = rec {
+          devenv-up = self.devShells.${system}.default.config.procfileScript;
+
           # `nix build`
           default = pkgs.buildDotnetModule {
-            pname = name;
-            version = version;
+            pname = app_name;
+            version = app_version;
             src = ./.;
             projectFile = "src/App/App.fsproj";
             nugetDeps = ./deps.nix;
-
-            dotnet-sdk =
-              with pkgs.dotnetCorePackages;
-              combinePackages [
-                sdk_8_0
-              ];
+            dotnet-sdk = dotnet;
             dotnet-runtime = pkgs.dotnetCorePackages.sdk_8_0;
           };
 
@@ -72,63 +82,73 @@
               ];
             };
           };
-        }
-      );
+        };
 
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgsFor."${system}";
-          dotnet =
-            with pkgs.dotnetCorePackages;
-            combinePackages [
-              sdk_8_0
-            ];
-        in
-        {
-          # `nix develop .#ci`
-          # reduce the number of packages to the bare minimum needed for CI
-          ci = pkgs.mkShell {
-            buildInputs = with pkgs; [
-              git
-              just
-              dotnet
-            ];
-          };
-
-          # `nix develop --impure`
+        # Shells
+        devShells = {
+          # nix develop --impure
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [
               (
                 { pkgs, lib, ... }:
                 {
-                  packages = with pkgs; [
-                    bash
-                    just
-
-                    # for dotnet
-                    netcoredbg
-                    fsautocomplete
-                    fantomas
-                  ];
+                  packages = tooling;
 
                   languages.dotnet = {
                     enable = true;
                     package = dotnet;
                   };
 
-                  # looks for the .env by default additionaly, there is .filename
-                  # if an arbitrary file is desired
-                  dotenv.enable = true;
+                  scripts = {
+                    build.exec = "just build";
+                    db-up.exec = "just db-up";
+                    db-down.exec = "just db-down";
+                    db-reset.exec = "just db-reset";
+                  };
+
+                  enterShell = ''
+                    echo "Starting Development Environment..."
+                    dotnet --version
+                  '';
+
+                  services.postgres = {
+                    enable = true;
+                    package = pkgs.postgresql_17;
+                    extensions = ext: [
+                      ext.periods
+                    ];
+                    initdbArgs = [
+                      "--locale=C"
+                      "--encoding=UTF8"
+                    ];
+                    settings = {
+                      shared_preload_libraries = "pg_stat_statements";
+                      # pg_stat_statements config, nested attr sets need to be
+                      # converted to strings, otherwise postgresql.conf fails
+                      # to be generated.
+                      compute_query_id = "on";
+                      "pg_stat_statements.max" = 10000;
+                      "pg_stat_statements.track" = "all";
+                    };
+                    initialDatabases = [ { name = app_name; } ];
+                    port = 5432;
+                    listen_addresses = "127.0.0.1";
+                    initialScript = ''
+                      CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+                      CREATE USER admin SUPERUSER;
+                      ALTER USER admin PASSWORD 'admin';
+                      GRANT ALL PRIVILEGES ON DATABASE ${app_name} to admin;
+                    '';
+                  };
                 }
               )
             ];
           };
-        }
-      );
+        };
 
-      # nix fmt
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
-    };
+        # nix fmt
+        formatter = treefmtEval.config.build.wrapper;
+      }
+    );
 }
