@@ -13,4 +13,8 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\App.Migrations\App.Migrations.fsproj" />
+  </ItemGroup>
+
 </Project>
