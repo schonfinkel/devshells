@@ -67,13 +67,13 @@
             projectFile = "src/App/App.fsproj";
             nugetDeps = ./deps.nix;
             dotnet-sdk = dotnet;
-            dotnet-runtime = pkgs.dotnetCorePackages.sdk_8_0;
+            dotnet-runtime = dotnet;
           };
 
           # nix build .#dockerImage
           dockerImage = pkgs.dockerTools.buildLayeredImage {
-            name = "sample";
-            tag = "latest";
+            name = app_name;
+            tag = app_version;
             created = "now";
             contents = [ default ];
             config = {
