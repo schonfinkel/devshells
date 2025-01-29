@@ -9,7 +9,7 @@ let main _ =
         match App.Settings.load () with
         | Ok c -> c
         | Error e -> failwith e
-        
+
     let value =
         result {
             let connection = configuration.Database.ToString()
@@ -17,11 +17,11 @@ let main _ =
             do! App.Migrations.migrate connectionString
             ()
         }
+
     match value with
     | Ok _ ->
         Console.WriteLine $"[DATABASE] Migrations successfully applied at: {configuration.Database.Hostname}!."
         0
     | Error exn ->
         Console.WriteLine(exn.ToString())
-        1    
-    
+        1

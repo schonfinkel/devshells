@@ -3,7 +3,7 @@
 module Migrations =
     open System
     open System.Reflection
-    
+
     open DbUp
     open DbUp.Engine
     open DbUp.Helpers
@@ -12,32 +12,27 @@ module Migrations =
 
     let private buildEngine (connectionString: NpgsqlConnection) =
         let connection = connectionString.ConnectionString
-        DeployChanges.To
-            .PostgresqlDatabase(connection)
-            .LogToConsole()
-            .WithTransaction()
-            .WithVariablesDisabled()
-            
+        DeployChanges.To.PostgresqlDatabase(connection).LogToConsole().WithTransaction().WithVariablesDisabled()
+
     let private performUpgrade (engine: UpgradeEngine) =
         let result = engine.PerformUpgrade()
         if result.Successful then Ok() else Error result.Error
-            
+
     // i.e. functions/views/etc
     let private isRepeatableMigration (migration: string) = migration.Contains("/repeatable/")
-    
+
     let migrate connectionString =
         let defaultEngine =
             (buildEngine connectionString)
-                .WithScriptsEmbeddedInAssembly(
-                    Assembly.GetExecutingAssembly(),
-                    isRepeatableMigration >> not
-                )
+                .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly(), isRepeatableMigration >> not)
                 .Build()
+
         let repeatableEngine =
             (buildEngine connectionString)
                 .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly(), isRepeatableMigration)
                 .JournalTo(new NullJournal())
                 .Build()
+
         performUpgrade defaultEngine
         |> Result.bind (fun _ -> performUpgrade repeatableEngine)
 

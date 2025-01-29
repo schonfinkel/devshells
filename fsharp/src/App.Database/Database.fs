@@ -3,5 +3,4 @@
 open Npgsql.FSharp
 
 module Database =
-    let hello name =
-        printfn "Hello %s" name
+    let hello name = printfn "Hello %s" name

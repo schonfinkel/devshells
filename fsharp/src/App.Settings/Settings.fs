@@ -1,4 +1,4 @@
-﻿namespace App 
+﻿namespace App
 
 module Settings =
     open FsConfig
@@ -24,24 +24,22 @@ module Settings =
     type AppSettings =
         { [<DefaultValue("DEVELOPMENT")>]
           Environment: AppEnvironment }
+
     and AppEnvironment =
         | DEVELOPMENT
         | TEST
         | PRODUCTION
-        
+
     type Configuration =
-        { App: AppSettings
-          Database: Database }
+        { App: AppSettings; Database: Database }
 
     let load () =
         result {
             let! database = EnvConfig.Get<Database>()
             let! app = EnvConfig.Get<AppSettings>()
 
-            return
-                { App = app
-                  Database = database }
-                
+            return { App = app; Database = database }
+
         }
         |> Result.mapError (fun error ->
             match error with
