@@ -43,19 +43,27 @@
             sdk_8_0
           ];
 
-        tooling = with pkgs; [
-          bash
-          just
-
-          # for PG
+        linuxPkgs = with pkgs; [
           icu
           inotify-tools
-
-          # for dotnet
-          netcoredbg
-          fsautocomplete
-          fantomas
         ];
+        darwinPkgs = with pkgs.darwin.apple_sdk.frameworks; [
+          CoreFoundation
+          CoreServices
+        ];
+        tooling =
+          with pkgs;
+          [
+            bash
+            just
+
+            # for dotnet
+            netcoredbg
+            fsautocomplete
+            fantomas
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
 
         app_name = "app";
         app_version = "0.1.0";
@@ -92,6 +100,12 @@
 
         # Shells
         devShells = {
+          # nix develop .#ci
+          # reduce the number of packages to the bare minimum needed for CI
+          ci = pkgs.mkShell {
+            buildInputs = dotnet ++ tooling;
+          };
+
           # nix develop --impure
           default = devenv.lib.mkShell {
             inherit inputs pkgs;

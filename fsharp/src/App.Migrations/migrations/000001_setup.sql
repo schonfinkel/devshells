@@ -1,5 +1,6 @@
 -- Initial Schemas
 CREATE SCHEMA IF NOT EXISTS app;
+CREATE SCHEMA IF NOT EXISTS tooling;
 
 -- Initial Roles
 DO $$

@@ -1,10 +1,7 @@
 ﻿namespace App
 
-open System
 
 module Settings =
-    open System.IO
- 
     open FsConfig
     open FsToolkit.ErrorHandling
 

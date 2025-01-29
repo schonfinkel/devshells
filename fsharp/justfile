@@ -23,7 +23,7 @@ default:
 
 # SOURCE: 
 # https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/dotnet.section.md#generating-and-updating-nuget-dependencies-generating-and-updating-nuget-dependencies
-# Generates nix dependencies for deps.nix
+# Generates nix dependencies for the nix build
 gen-deps:
     dotnet restore --packages out
     nix run nixpkgs#nuget-to-json -- out > deps.json
@@ -40,6 +40,10 @@ build-nix:
 # Runs testing suite
 test:
     ls {{tests}}/*.Tests/*.fsproj | xargs -L1 dotnet test --logger:trx
+
+# Migrates the DB
+migrate: build
+    dotnet run --project src/App.Migrations
 
 # Packages current tag as a .Net release
 pack:

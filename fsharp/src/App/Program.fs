@@ -12,8 +12,10 @@ let main _ =
 
     result {
         let connection = configuration.Database.ToString()
-        do! App.Migrations.migrate connection 
+        do! App.Migrations.migrate connection
         Console.WriteLine $"[DATABASE] Migrations successfully applied at: {configuration.Database.Hostname}!."
         return 1
     }
-    |> Result.defaultWith(fun (MigrationError e) -> Console.WriteLine e; 1)
+    |> Result.defaultWith (fun (MigrationError e) ->
+        Console.WriteLine e
+        1)

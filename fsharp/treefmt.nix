@@ -6,5 +6,9 @@
   programs = {
     fantomas.enable = true;
     nixfmt.enable = true;
+    sqlfluff = {
+      enable = true;
+      dialect = "postgres";
+    };
   };
 }
