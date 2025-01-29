@@ -28,14 +28,11 @@ jobs:
         token: ${{ github.token }}
 
     - name: Install Nix
-      uses: cachix/install-nix-action@v24
+      uses: cachix/install-nix-action@v30
       with:
         # Mostly to avoid GitHub rate limiting
         extra_nix_config: |
           access-tokens = github.com=${{ github.token }}
-
-    - name: Install Nix Cache
-      uses: DeterminateSystems/magic-nix-cache-action@main
 
     - name: Build
       run: nix develop .#ci --impure -c just build

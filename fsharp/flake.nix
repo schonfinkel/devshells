@@ -37,22 +37,36 @@
 
         treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
 
-        dotnet = with pkgs.dotnetCorePackages; combinePackages [
-          sdk_8_0
-        ];
+        dotnet =
+          with pkgs.dotnetCorePackages;
+          combinePackages [
+            sdk_8_0
+          ];
 
-        tooling = with pkgs; [
-          bash
-          just
-
-          # for dotnet
-          netcoredbg
-          fsautocomplete
-          fantomas
+        linuxPkgs = with pkgs; [
+          icu
+          inotify-tools
         ];
+        darwinPkgs = with pkgs.darwin.apple_sdk.frameworks; [
+          CoreFoundation
+          CoreServices
+        ];
+        tooling =
+          with pkgs;
+          [
+            bash
+            just
+
+            # for dotnet
+            netcoredbg
+            fsautocomplete
+            fantomas
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
 
         app_name = "app";
-        app_version = "0.0.1";
+        app_version = "0.1.0";
       in
       {
         # nix build
@@ -65,7 +79,7 @@
             version = app_version;
             src = ./.;
             projectFile = "src/App/App.fsproj";
-            nugetDeps = ./deps.nix;
+            nugetDeps = ./deps.json;
             dotnet-sdk = dotnet;
             dotnet-runtime = dotnet;
           };
@@ -86,6 +100,12 @@
 
         # Shells
         devShells = {
+          # nix develop .#ci
+          # reduce the number of packages to the bare minimum needed for CI
+          ci = pkgs.mkShell {
+            buildInputs = dotnet ++ tooling;
+          };
+
           # nix develop --impure
           default = devenv.lib.mkShell {
             inherit inputs pkgs;

@@ -4,7 +4,11 @@
   # Used to find the project root
   projectRootFile = "flake.nix";
   programs = {
-    dotnet.enable = true;
+    fantomas.enable = true;
     nixfmt.enable = true;
+    sqlfluff = {
+      enable = true;
+      dialect = "postgres";
+    };
   };
 }
