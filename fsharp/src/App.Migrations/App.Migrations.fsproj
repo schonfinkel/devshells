@@ -15,7 +15,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="migrations\**\**\*.sql" />
+        <EmbeddedResource Include="migrations\main\*.sql" />
+        <EmbeddedResource Include="migrations\repeatable\**\*.sql" />
         <Compile Include="Program.fs"/>
     </ItemGroup>
 </Project>

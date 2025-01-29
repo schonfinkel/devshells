@@ -14,3 +14,10 @@ DO $$
         END IF;
     END
 $$;
+
+-- Example table
+CREATE TABLE app.user (
+    id INT,
+    username TEXT,
+    PRIMARY KEY (id, username)
+);

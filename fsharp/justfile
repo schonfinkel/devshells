@@ -45,6 +45,10 @@ test:
 migrate: build
     dotnet run --project src/App.Migrations
 
+# Migrates the DB
+db: 
+    psql -U admin app
+
 # Packages current tag as a .Net release
 pack:
 	@echo "PACKING RELEASE: {{release}}"
