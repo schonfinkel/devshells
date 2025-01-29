@@ -1,16 +1,20 @@
 ﻿namespace App
 
+open System
+
 module Settings =
+    open System.IO
+ 
     open FsConfig
     open FsToolkit.ErrorHandling
 
     [<Convention("DATABASE")>]
     type Database =
-        { [<DefaultValue("localhost")>]
+        { [<DefaultValue("127.0.0.1")>]
           Hostname: string
-          [<DefaultValue("postgres")>]
+          [<DefaultValue("admin")>]
           Password: string
-          [<DefaultValue("postgres")>]
+          [<DefaultValue("admin")>]
           User: string
           [<DefaultValue("app")>]
           Database: string

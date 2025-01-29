@@ -5,13 +5,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\App.Database\App.Database.fsproj" />
-      <ProjectReference Include="..\App.Settings\App.Settings.fsproj" />
+      <PackageReference Include="dbup" Version="5.0.40" />
+      <PackageReference Include="dbup-postgresql" Version="5.0.40" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="dbup" Version="5.0.40" />
-      <PackageReference Include="dbup-postgresql" Version="5.0.40" />
+        <ProjectReference Include="..\App.Database\App.Database.fsproj" />
+        <ProjectReference Include="..\App.Settings\App.Settings.fsproj" />
     </ItemGroup>
 
     <ItemGroup>

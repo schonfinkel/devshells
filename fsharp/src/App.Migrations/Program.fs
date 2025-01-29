@@ -2,39 +2,39 @@
 
 module Migrations =
     open System
-    open System.Reflection
+    open System.IO
 
     open DbUp
     open DbUp.Engine
-    open DbUp.Helpers
     open FsToolkit.ErrorHandling
-    open Npgsql
-
-    let private buildEngine (connectionString: NpgsqlConnection) =
-        let connection = connectionString.ConnectionString
-        DeployChanges.To.PostgresqlDatabase(connection).LogToConsole().WithTransaction().WithVariablesDisabled()
-
-    let private performUpgrade (engine: UpgradeEngine) =
-        let result = engine.PerformUpgrade()
-        if result.Successful then Ok() else Error result.Error
-
+    
+    type MigrationError = MigrationError of string
+    
     // i.e. functions/views/etc
     let private isRepeatableMigration (migration: string) = migration.Contains("/repeatable/")
+    let private isMainMigration (migration: string) = migration.Contains("/main/")
 
+    let private buildEngine (conn: string) path (predicate: string -> bool) =
+        DeployChanges.To
+            .PostgresqlDatabase(conn)
+            .LogToConsole().WithTransaction().WithVariablesDisabled()
+            .WithScriptsFromFileSystem(path, predicate)
+            .Build()
+
+    let private attemptMigrationWithEngine (engine: UpgradeEngine) =
+        let result = engine.PerformUpgrade()
+        if result.Successful then Ok () else Error (MigrationError result.Error.Message)
+        
+    let private performUpgrade (engines: UpgradeEngine list) =
+        engines
+        |> List.traverseResultM attemptMigrationWithEngine
+        |> Result.map (fun _ -> ())
+ 
     let migrate connectionString =
-        let defaultEngine =
-            (buildEngine connectionString)
-                .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly(), isRepeatableMigration >> not)
-                .Build()
-
-        let repeatableEngine =
-            (buildEngine connectionString)
-                .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly(), isRepeatableMigration)
-                .JournalTo(new NullJournal())
-                .Build()
-
-        performUpgrade defaultEngine
-        |> Result.bind (fun _ -> performUpgrade repeatableEngine)
+        let path = Path.Combine(__SOURCE_DIRECTORY__, "migrations")
+        let defaultEngine = buildEngine connectionString path isMainMigration
+        let repeatableEngine = buildEngine connectionString path isRepeatableMigration
+        performUpgrade [defaultEngine; repeatableEngine]
 
     [<EntryPoint>]
     let main _ =
@@ -43,17 +43,10 @@ module Migrations =
             | Ok c -> c
             | Error e -> failwith e
 
-        let value =
-            result {
-                let connection = configuration.Database.ToString()
-                use connectionString = new NpgsqlConnection(connection)
-                do! migrate connectionString
-            }
-
-        match value with
-        | Ok _ ->
+        result {
+            let connection = configuration.Database.ToString()
+            do! migrate connection
             Console.WriteLine $"[DATABASE] Migrations successfully applied at: {configuration.Database.Hostname}!."
-            0
-        | Error exn ->
-            Console.WriteLine(exn.ToString())
-            1
+            return 1
+        }
+        |> Result.defaultWith(fun (MigrationError e) -> Console.WriteLine e; 1)

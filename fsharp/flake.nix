@@ -47,6 +47,10 @@
           bash
           just
 
+          # for PG
+          icu
+          inotify-tools
+
           # for dotnet
           netcoredbg
           fsautocomplete
