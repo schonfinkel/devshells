@@ -51,6 +51,7 @@
           with pkgs;
           [
             bash
+            gnumake
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
@@ -102,6 +103,7 @@
                     package = pkgs.postgresql_17;
                     extensions = ext: [
                       ext.periods
+                      ext.pg_cron
                     ];
                     initdbArgs = [
                       "--locale=C"
@@ -118,19 +120,13 @@
                     };
                     initialDatabases = [ 
                       { name = app_name; }
-                      { name = "postgres"; user = "postgres" }
                     ];
                     port = 5432;
                     listen_addresses = "127.0.0.1";
                     initialScript = ''
                       CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-                      CREATE ROLE postgres SUPERUSER;
-                      CREATE USER admin SUPERUSER;
-                      ALTER USER admin PASSWORD 'admin';
-                      ALTER USER postgres PASSWORD 'postgres';
-                      GRANT ALL PRIVILEGES ON DATABASE ${app_name} to admin;
-                      GRANT ALL PRIVILEGES ON DATABASE ${app_name} to postgres;
-                      GRANT ALL PRIVILEGES ON DATABASE postgres to postgres;
+                      CREATE ROLE postgres WITH SUPERUSER LOGIN PASSWORD 'postgres';
+                      ALTER DATABASE ${app_name} OWNER TO postgres;
                     '';
                   };
                 }
