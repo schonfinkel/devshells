@@ -39,6 +39,15 @@
           - Run `nix develop --impure`
         '';
       };
+
+      terrateam = {
+        path = ./terrateam;
+        description = "A basic development environment for the Terrateam project";
+        welcomeText = ''
+          # Getting started
+          - Run `nix develop --impure`
+        '';
+      };
     };
 
     defaultTemplate = self.templates.gleam;

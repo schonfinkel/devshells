@@ -51,7 +51,11 @@
           with pkgs;
           [
             bash
+            fswatch
             gnumake
+            opam
+            sqlite
+            yj
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
@@ -86,6 +90,10 @@
 
                   languages.ocaml = {
                     enable = true;
+                  };
+
+                  env = {
+                    OCAMLFIND_DESTDIR="$HOME/.opam/default/lib";
                   };
 
                   scripts = {
