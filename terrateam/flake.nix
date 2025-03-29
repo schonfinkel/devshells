@@ -1,5 +1,5 @@
 {
-  description = "OCaml Development Environment";
+  description = "Terrateam Development Environment";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -31,7 +31,7 @@
         pkgs = import nixpkgs {
           inherit system;
           config = {
-            allowUnfree = true;
+            allowUnfee = true;
           };
         };
 
@@ -40,6 +40,7 @@
         linuxPkgs = with pkgs; [
           icu
           inotify-tools
+          pkg-config
         ];
 
         darwinPkgs = with pkgs.darwin.apple_sdk.frameworks; [
@@ -47,18 +48,57 @@
           CoreServices
         ];
 
+        libreTLS =
+          pkgs.stdenv.mkDerivation (finalAttrs: {
+            pname = "libretls";
+            version = "3.8.1";
+          
+            src = pkgs.fetchgit {
+              url = "https://git.causal.agency/libretls";
+              tag = finalAttrs.version;
+              hash = "sha256-cFu9v8vOkfvIj/OfD0Er3n+gbH1h1CHOHA6a0pJuwXY=";
+            };
+          
+            nativeBuildInputs = with pkgs; [
+              pkg-config
+              autoconf
+              automake
+              libtool
+            ];
+          
+            buildInputs = with pkgs; [ openssl ];
+          
+            strictDeps = true;
+          
+            # https://git.causal.agency/libretls/about/
+            preConfigure = ''
+              autoreconf -fi
+            '';
+          });
+
         tooling =
-          with pkgs;
-          [
+          (with pkgs; [
             bash
+            clang
+            curl
             fswatch
+            glibcLocales
             gnumake
+            gmp
+            libffi
+            libkqueue
+            libpq
+            nodejs_23
             opam
-          ]
+            sqlite
+            yj
+            zlib
+          ])
+          ++ [ libreTLS ]
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
 
-        _app_name = "app";
+        app_name = "terrateam";
       in
       {
         # nix build
@@ -71,18 +111,19 @@
           # nix develop .#ci
           # reduce the number of packages to the bare minimum needed for CI
           ci = pkgs.mkShell {
-            buildInputs = tooling ++ [pkgs.ocaml];
+            buildInputs = tooling;
           };
 
           # nix develop --impure
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [
-              (import ./devshell.nix {
-                inherit pkgs tooling;
+              (import ./devshell.nix { 
+                inherit pkgs tooling app_name;
               })
             ];
           };
+
         };
 
         # nix fmt
