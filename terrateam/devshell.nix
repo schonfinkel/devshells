@@ -3,8 +3,8 @@
   packages = tooling;
 
   scripts = {
-    build.exec = "dune build";
-    watch.exec = "dune build --watch";
+    build.exec = "make -j12 -k release_terrat";
+    pg-test.exec = "make -j12 -k release_pgsql_test_client debug_pgsql_test_client";
   };
 
   enterShell = ''
@@ -24,6 +24,7 @@
       "--locale=C"
       "--encoding=UTF8"
     ];
+    hbaConf = builtins.readFile ./pg_hba.conf;
     settings = {
       shared_preload_libraries = "pg_stat_statements";
       # pg_stat_statements config, nested attr sets need to be
@@ -34,13 +35,14 @@
       "pg_stat_statements.track" = "all";
     };
     initialDatabases = [
-      { name = app_name; }
+      { name = app_name; user = app_name; pass = app_name; }
     ];
     port = 5432;
     listen_addresses = "127.0.0.1";
     initialScript = ''
       CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
       CREATE ROLE postgres WITH SUPERUSER LOGIN PASSWORD 'postgres';
+      CREATE ROLE test_user LOGIN PASSWORD 'postgres';
       ALTER DATABASE ${app_name} OWNER TO postgres;
     '';
   };
