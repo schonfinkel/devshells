@@ -41,6 +41,13 @@ if test ! -d $OPAM_MONO_PATH; then
   opam update opam-mono
   opam info monorepo
   opam install -j$(nproc --all) -y --deps-only --no-depexts monorepo
+  cd code && pds -d && make -j$(nproc --all) release-terrat
 fi
 
 eval $(opam env --switch=$OCAML_SWITCH_NAME)
+
+# Now you'll need to install some of the tooling on your own...
+# opam install ocaml-lsp-server
+# opam install utop
+# opam install ocamlformat
+# opam install odig
