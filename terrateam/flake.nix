@@ -93,11 +93,6 @@
             sqlite
             yj
             zlib
-            # To verify crypto stuff
-            (pkgs.python3.withPackages (python-pkgs: [
-              python-pkgs.passlib
-              python-pkgs.scramp
-            ]))
           ])
           ++ [ libreTLS ]
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs

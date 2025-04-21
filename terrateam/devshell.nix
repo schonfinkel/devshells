@@ -11,7 +11,6 @@
 
   enterShell = ''
     echo "Starting Development Environment..."
-    ./setup.sh
     eval $(opam env --switch=5.1.1)
   '';
 
