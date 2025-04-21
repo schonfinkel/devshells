@@ -31,7 +31,7 @@
         pkgs = import nixpkgs {
           inherit system;
           config = {
-            allowUnfee = true;
+            allowUnfree = true;
           };
         };
 
@@ -61,19 +61,19 @@
           
             nativeBuildInputs = with pkgs; [
               pkg-config
-              autoconf
-              automake
+              autoreconfHook
               libtool
+            ];
+
+            # https://git.causal.agency/libretls/about/
+            autoreconfFlags = [
+              "--force"
+              "--install"
             ];
           
             buildInputs = with pkgs; [ openssl ];
           
             strictDeps = true;
-          
-            # https://git.causal.agency/libretls/about/
-            preConfigure = ''
-              autoreconf -fi
-            '';
           });
 
         tooling =
@@ -88,6 +88,7 @@
             libffi
             libkqueue
             libpq
+            ngrok
             nodejs_23
             opam
             sqlite
