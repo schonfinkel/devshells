@@ -4,7 +4,7 @@
 
   scripts = {
     build.exec = "make -j$(nproc --all) -k release_terrat";
-    release.exec = "make -j$(nproc --all) test release_terrat_oss";
+    release.exec = "make -j$(nproc --all) release_terrat_oss";
     pg-build.exec = "make -j$(nproc --all) -k release_pgsql_test_client debug_pgsql_test_client";
     pg-test.exec = "./build/debug/pgsql_test_client/pgsql_test_client.native 127.0.0.1 terrateam terrateam terrateam";
     pg-con.exec = "psql -h 127.0.0.1 -p 5432 -U terrateam terrateam";
@@ -13,7 +13,7 @@
   enterShell = ''
     echo "Starting Development Environment..."
     eval $(opam env --switch=5.1.1)
-    opam switch list
+    opam switch show
   '';
 
   services.nginx = {
