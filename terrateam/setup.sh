@@ -22,6 +22,7 @@ else
   eval $(opam env --switch=$OCAML_SWITCH_NAME)
   opam repository add opam-acsl opam
   opam pin add -y containers 3.12
+  opam pin add -y cryptokit 1.20
   opam pin add -y pds 6.54 --no-depexts
   opam pin add -y hll 4.3 --no-depexts
 fi
@@ -41,7 +42,7 @@ if test ! -d $OPAM_MONO_PATH; then
   opam update opam-mono
   opam info monorepo
   opam install -j$(nproc --all) -y --deps-only --no-depexts monorepo
-  cd code && pds -d && make -j$(nproc --all) release-terrat
+  pds -d && make -j$(nproc --all) release-terrat
 fi
 
 eval $(opam env --switch=$OCAML_SWITCH_NAME)
