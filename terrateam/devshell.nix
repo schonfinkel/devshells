@@ -13,6 +13,7 @@
   enterShell = ''
     echo "Starting Development Environment..."
     eval $(opam env --switch=5.1.1)
+    opam switch list
   '';
 
   services.nginx = {

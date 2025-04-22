@@ -5,10 +5,11 @@ set -euo pipefail
 export LANG="en_US.UTF-8"
 export OCAML_SWITCH_NAME="5.1.1"
 export OPAM_MONO_PATH=$PWD/opam-mono
+export TT_REPO="https://github.com/jjm-enterprises/opam-repository.git#terrateam"
 
 if [ ! -d $HOME/.opam ]; then
   echo "Initializing opam..."
-  opam init --bare -n
+  opam init -ayn --bare
 fi
 
 # I always forget how to match grep
@@ -17,8 +18,8 @@ if opam switch list | grep -q $OCAML_SWITCH_NAME; then
   eval $(opam env --switch=$OCAML_SWITCH_NAME)
 else
   echo "Creating OPAM switch for $OCAML_SWITCH_NAME"
-  opam repository set-url --set-default default "https://github.com/jjm-enterprises/opam-repository.git#terrateam"
-  opam switch create -y 5.1.1
+  opam repository set-url --set-default default $TT_REPO
+  opam switch create -y $OCAML_SWITCH_NAME
   eval $(opam env --switch=$OCAML_SWITCH_NAME)
   opam repository add opam-acsl opam
   opam pin add -y containers 3.12
@@ -48,7 +49,7 @@ fi
 eval $(opam env --switch=$OCAML_SWITCH_NAME)
 
 # Now you'll need to install some of the tooling on your own...
-# opam install ocaml-lsp-server
-# opam install utop
-# opam install ocamlformat
-# opam install odig
+# opam install -y ocaml-lsp-server
+# opam install -y utop
+# opam install -y ocamlformat
+# opam install -y odig
