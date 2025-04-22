@@ -1,13 +1,25 @@
 { pkgs, tooling, app_name }:
 {
-  packages = tooling;
+  packages = tooling ++ [ pkgs.python3 ];
 
   scripts = {
     build.exec = "make -j$(nproc --all) -k release_terrat";
     release.exec = "make -j$(nproc --all) release_terrat_oss";
+    server.exec = "./build/release/terrat_oss/terrat_oss.native server";
     pg-build.exec = "make -j$(nproc --all) -k release_pgsql_test_client debug_pgsql_test_client";
     pg-test.exec = "./build/debug/pgsql_test_client/pgsql_test_client.native 127.0.0.1 terrateam terrateam terrateam";
     pg-con.exec = "psql -h 127.0.0.1 -p 5432 -U terrateam terrateam";
+  };
+
+  env = {
+    NGROK_ENDPOINT = "http://ngrok:4040";
+    DB_HOST = "127.0.0.1";
+    DB_PORT = "5432";
+    DB_USER = "terrateam";
+    DB_PASS = "terrateam";
+    DB_NAME = "terrateam";
+    TERRAT_API_BASE="https://terrateam.example.com";
+    TERRAT_PYTHON_EXEC="${pkgs.python3}/bin/python3";
   };
 
   enterShell = ''
@@ -16,8 +28,13 @@
     opam switch show
   '';
 
-  services.nginx = {
+  #services.nginx = {
+  #  enable = true;
+  #};
+
+  dotenv = {
     enable = true;
+    filename = ".env";
   };
 
   services.postgres = {

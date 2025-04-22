@@ -12,6 +12,11 @@ if [ ! -d $HOME/.opam ]; then
   opam init -ayn --bare
 fi
 
+if test -n "$(find $HOME/.opam -maxdepth 0 -empty)" ; then
+  echo "Initializing opam..."
+  opam init -ayn --bare
+fi
+
 # I always forget how to match grep
 # https://unix.stackexchange.com/a/275333
 if opam switch list | grep -q $OCAML_SWITCH_NAME; then
