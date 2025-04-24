@@ -1,4 +1,5 @@
-{ pkgs, tooling, app_name }:
+{ devenv, pkgs, tooling, app_name }:
+
 {
   packages = tooling ++ [ pkgs.python3 ];
 
@@ -57,6 +58,11 @@
       compute_query_id = "on";
       "pg_stat_statements.max" = 10000;
       "pg_stat_statements.track" = "all";
+      # SSL
+      # ssl = "on";
+      # ssl_cert_file = builtins.toString ./server.crt;
+      # ssl_key_file = builtins.toString ./server.key;
+      # ssl_ca_file = builtins.toString ./root.crt;
     };
     initialDatabases = [
       { name = app_name; user = app_name; pass = app_name; }

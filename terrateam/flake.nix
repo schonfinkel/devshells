@@ -120,7 +120,7 @@
             inherit inputs pkgs;
             modules = [
               (import ./devshell.nix { 
-                inherit pkgs tooling app_name;
+                inherit devenv pkgs tooling app_name;
               })
             ];
           };
