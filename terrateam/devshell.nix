@@ -1,5 +1,10 @@
-{ devenv, pkgs, tooling, app_name }:
+{ devenv, pkgs, tooling }:
 
+let
+  databases = [
+    { name = "terrateam"; user = "terrateam"; pass = "terrateam"; }
+  ];
+in
 {
   packages = tooling ++ [ pkgs.python3 ];
 
@@ -10,6 +15,7 @@
     pg-build.exec = "make -j$(nproc --all) -k release_pgsql_test_client debug_pgsql_test_client";
     pg-test.exec = "./build/debug/pgsql_test_client/pgsql_test_client.native 127.0.0.1 terrateam terrateam terrateam";
     pg-con.exec = "psql -h 127.0.0.1 -p 5432 -U terrateam terrateam";
+    pg-ssl.exec = "psql 'host=127.0.0.1 dbname=terrateam user=terrateam sslmode=verify-ca sslcert=client.crt sslkey=client.key sslrootcert=root.crt'";
   };
 
   env = {
@@ -28,10 +34,6 @@
     eval $(opam env --switch=5.1.1)
     opam switch show
   '';
-
-  #services.nginx = {
-  #  enable = true;
-  #};
 
   dotenv = {
     enable = true;
@@ -59,21 +61,18 @@
       "pg_stat_statements.max" = 10000;
       "pg_stat_statements.track" = "all";
       # SSL
-      # ssl = "on";
-      # ssl_cert_file = builtins.toString ./server.crt;
-      # ssl_key_file = builtins.toString ./server.key;
-      # ssl_ca_file = builtins.toString ./root.crt;
+      #ssl = "on";
+      #ssl_cert_file = builtins.toString ./server.crt;
+      #ssl_key_file = builtins.toString ./server.key;
+      #ssl_ca_file = builtins.toString ./root.crt;
     };
-    initialDatabases = [
-      { name = app_name; user = app_name; pass = app_name; }
-    ];
+    initialDatabases = databases;
     port = 5432;
     listen_addresses = "127.0.0.1";
     initialScript = ''
       CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
       CREATE ROLE postgres WITH SUPERUSER LOGIN PASSWORD 'postgres';
-      CREATE ROLE test_user LOGIN PASSWORD 'postgres';
-      ALTER DATABASE ${app_name} OWNER TO postgres;
+      ALTER DATABASE terrateam OWNER TO postgres;
     '';
   };
 }

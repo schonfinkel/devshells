@@ -98,8 +98,6 @@
           ++ [ libreTLS ]
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
-
-        app_name = "terrateam";
       in
       {
         # nix build
@@ -120,7 +118,7 @@
             inherit inputs pkgs;
             modules = [
               (import ./devshell.nix { 
-                inherit devenv pkgs tooling app_name;
+                inherit devenv pkgs tooling;
               })
             ];
           };
