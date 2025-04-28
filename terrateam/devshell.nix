@@ -31,13 +31,18 @@ in
 
   enterShell = ''
     echo "Starting Development Environment..."
-    eval $(opam env --switch=5.1.1)
-    opam switch show
+    # eval $(opam env --switch=5.1.1)
+    # opam switch show
   '';
 
   dotenv = {
     enable = true;
     filename = ".env";
+  };
+
+  languages.ocaml = {
+    enable = true;
+    packages = pkgs.ocaml-ng.ocamlPackages_5_3;
   };
 
   services.postgres = {

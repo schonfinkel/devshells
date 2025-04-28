@@ -48,34 +48,6 @@
           CoreServices
         ];
 
-        libreTLS =
-          pkgs.stdenv.mkDerivation (finalAttrs: {
-            pname = "libretls";
-            version = "3.8.1";
-          
-            src = pkgs.fetchgit {
-              url = "https://git.causal.agency/libretls";
-              tag = finalAttrs.version;
-              hash = "sha256-cFu9v8vOkfvIj/OfD0Er3n+gbH1h1CHOHA6a0pJuwXY=";
-            };
-          
-            nativeBuildInputs = with pkgs; [
-              pkg-config
-              autoreconfHook
-              libtool
-            ];
-
-            # https://git.causal.agency/libretls/about/
-            autoreconfFlags = [
-              "--force"
-              "--install"
-            ];
-          
-            buildInputs = with pkgs; [ openssl ];
-          
-            strictDeps = true;
-          });
-
         tooling =
           (with pkgs; [
             bash
@@ -88,6 +60,7 @@
             libffi
             libkqueue
             libpq
+            libretls
             ngrok
             nodejs_23
             opam
@@ -95,7 +68,6 @@
             yj
             zlib
           ])
-          ++ [ libreTLS ]
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
       in
