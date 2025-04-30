@@ -4,6 +4,12 @@ let
   databases = [
     { name = "terrateam"; user = "terrateam"; pass = "terrateam"; }
   ];
+  pwd = builtins.getEnv "PWD";
+  mainRepo = builtins.getEnv "MAIN_REPO";
+  terrat_api_url = builtins.getEnv "TERRAT_API_URL";
+  terrat_ui_base = builtins.getEnv "https://${terrat_api_url}/";
+  assetsSuffix = "build/release/terrat_ui_files/assets";
+  assetsPath = "${mainRepo}/code/${assetsSuffix}";
 in
 {
   packages = tooling ++ [ pkgs.python3 ];
@@ -25,14 +31,13 @@ in
     DB_USER = "terrateam";
     DB_PASS = "terrateam";
     DB_NAME = "terrateam";
-    TERRAT_API_BASE="https://terrateam.example.com";
+    OPAMROOT = "${pwd}/.opam";
     TERRAT_PYTHON_EXEC="${pkgs.python3}/bin/python3";
   };
 
   enterShell = ''
     echo "Starting Development Environment..."
-    # eval $(opam env --switch=5.1.1)
-    # opam switch show
+    eval $(opam env --switch=5.3.0)
   '';
 
   dotenv = {
@@ -40,9 +45,101 @@ in
     filename = ".env";
   };
 
-  languages.ocaml = {
+  #languages.ocaml = {
+  #  enable = true;
+  #  packages = pkgs.ocaml-ng.ocamlPackages_5_3;
+  #};
+
+  services.nginx = {
     enable = true;
-    packages = pkgs.ocaml-ng.ocamlPackages_5_3;
+    httpConfig = ''
+      default_type  application/octet-stream;
+      types_hash_bucket_size 128;
+      sendfile        on;
+
+      gzip  on;
+
+      # tell nginx to use the real client ip for all CIDRs
+      real_ip_header X-Forwarded-For;
+      set_real_ip_from 0.0.0.0/0;
+
+      keepalive_timeout  65;
+      limit_conn_zone $server_name zone=terrat_app:10m;
+      limit_req_zone $binary_remote_addr zone=client_limit:10m rate=1000r/s;
+
+      client_body_buffer_size 64k;
+
+      # Public facing portion of the app
+      server {
+          listen       8080;
+
+          server_name  localhost;
+          access_log   off;
+          server_tokens off;
+
+          location / {
+              set $cspNonce '$request_id';
+              sub_filter_once off;
+              sub_filter_types *;
+              sub_filter 'NGINX_CSP_NONCE' '$cspNonce';
+
+              root ${assetsPath};
+              index index.html index.htm;
+              try_files $uri $uri/ /index.html;
+              add_header Content-Security-Policy "default-src 'self' https://*.posthog.com; img-src 'self' https://avatars.githubusercontent.com; script-src 'self' 'nonce-$cspNonce' https://*.posthog.com; style-src 'self'; object-src 'none'; connect-src 'self' https://*.posthog.com";
+          }
+
+          location /assets {
+              root ${assetsPath};
+              tcp_nodelay on;
+          }
+
+          location /api {
+              # Limit the proxy to a lower number of concurrent requests to keep
+              # the underlying application happy.
+              limit_conn terrat_app 3000;
+              limit_req zone=client_limit burst=5000;
+
+              proxy_pass http://127.0.0.1:8180;
+              proxy_set_header X-Forwarded-For $remote_addr;
+              proxy_set_header X-Forwarded-Base "${terrat_ui_base}";
+
+              # Needed for returning response with large number of headers
+              proxy_buffer_size 128k;
+              proxy_buffers 4 256k;
+              proxy_busy_buffers_size 256k;
+
+              # This is the limit of how large we of input we allow.
+              client_max_body_size 50m;
+
+              # Add a long timeout to match the timeouts on the server side.
+              proxy_read_timeout 120;
+          }
+
+          # Turn off rate limit for health checks
+          location /health {
+              proxy_pass http://127.0.0.1:8180;
+              proxy_set_header X-Forwarded-For $remote_addr;
+          }
+
+          location /nginx_status {
+              stub_status on;
+              access_log off;
+              allow ::1;
+              allow 127.0.0.1;
+              allow 172.17.0.0/24;
+              deny all;
+          }
+
+          location /install {
+              return 301 https://github.com/apps/terrateam-action;
+          }
+
+          location /install/github {
+              return 301 https://github.com/apps/terrateam-action;
+          }
+      }
+    '';
   };
 
   services.postgres = {

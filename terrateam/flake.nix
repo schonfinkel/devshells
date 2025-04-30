@@ -8,6 +8,8 @@
       url = "github:numtide/flake-utils/v1.0.0";
     };
 
+    opam-nix.url = "github:tweag/opam-nix";
+
     devenv = {
       url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -22,6 +24,7 @@
       nixpkgs,
       devenv,
       flake-utils,
+      opam-nix,
       treefmt-nix,
       ...
     }@inputs:
@@ -33,6 +36,31 @@
           config = {
             allowUnfree = true;
           };
+        };
+
+        on = opam-nix.lib.${system};
+        # Local packages, detected from the package definition files in `./opam/`.
+        localPackagesQuery =
+          let
+            opam-lib = opam-nix.lib.${system};
+          in
+          pkgs.lib.mapAttrs (_: pkgs.lib.last)
+            (opam-lib.listRepo (opam-lib.makeOpamRepo ./.));
+
+        # Development package versions.
+        devPackagesQuery = {
+          ocaml-lsp-server = "*";
+          ocamlformat = "*";
+          utop = "*";
+        };
+
+        # Development package versions, along with the base compiler tools, used
+        # when building the opam project with `opam-nix`.
+        allPackagesQuery = devPackagesQuery // {
+          # # Use the OCaml compiler from nixpkgs
+          # ocaml-system = "*";
+          # Use OCaml compiler from opam-repository
+          ocaml-base-compiler = "5.3.0";
         };
 
         treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
