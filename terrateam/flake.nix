@@ -8,6 +8,8 @@
       url = "github:numtide/flake-utils/v1.0.0";
     };
 
+    opam-nix.url = "github:tweag/opam-nix";
+
     devenv = {
       url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -22,6 +24,7 @@
       nixpkgs,
       devenv,
       flake-utils,
+      opam-nix,
       treefmt-nix,
       ...
     }@inputs:
@@ -31,8 +34,33 @@
         pkgs = import nixpkgs {
           inherit system;
           config = {
-            allowUnfee = true;
+            allowUnfree = true;
           };
+        };
+
+        on = opam-nix.lib.${system};
+        # Local packages, detected from the package definition files in `./opam/`.
+        localPackagesQuery =
+          let
+            opam-lib = opam-nix.lib.${system};
+          in
+          pkgs.lib.mapAttrs (_: pkgs.lib.last)
+            (opam-lib.listRepo (opam-lib.makeOpamRepo ./.));
+
+        # Development package versions.
+        devPackagesQuery = {
+          ocaml-lsp-server = "*";
+          ocamlformat = "*";
+          utop = "*";
+        };
+
+        # Development package versions, along with the base compiler tools, used
+        # when building the opam project with `opam-nix`.
+        allPackagesQuery = devPackagesQuery // {
+          # # Use the OCaml compiler from nixpkgs
+          # ocaml-system = "*";
+          # Use OCaml compiler from opam-repository
+          ocaml-base-compiler = "5.3.0";
         };
 
         treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
@@ -48,34 +76,6 @@
           CoreServices
         ];
 
-        libreTLS =
-          pkgs.stdenv.mkDerivation (finalAttrs: {
-            pname = "libretls";
-            version = "3.8.1";
-          
-            src = pkgs.fetchgit {
-              url = "https://git.causal.agency/libretls";
-              tag = finalAttrs.version;
-              hash = "sha256-cFu9v8vOkfvIj/OfD0Er3n+gbH1h1CHOHA6a0pJuwXY=";
-            };
-          
-            nativeBuildInputs = with pkgs; [
-              pkg-config
-              autoconf
-              automake
-              libtool
-            ];
-          
-            buildInputs = with pkgs; [ openssl ];
-          
-            strictDeps = true;
-          
-            # https://git.causal.agency/libretls/about/
-            preConfigure = ''
-              autoreconf -fi
-            '';
-          });
-
         tooling =
           (with pkgs; [
             bash
@@ -88,17 +88,16 @@
             libffi
             libkqueue
             libpq
+            libretls
+            ngrok
             nodejs_23
             opam
             sqlite
             yj
             zlib
           ])
-          ++ [ libreTLS ]
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
-
-        app_name = "terrateam";
       in
       {
         # nix build
@@ -119,7 +118,7 @@
             inherit inputs pkgs;
             modules = [
               (import ./devshell.nix { 
-                inherit pkgs tooling app_name;
+                inherit devenv pkgs tooling;
               })
             ];
           };
