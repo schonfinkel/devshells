@@ -15,24 +15,27 @@ in
   packages = tooling ++ [ pkgs.python3 ];
 
   scripts = {
-    build.exec = "make -j$(nproc --all) -k terrat";
+    build.exec = "make -j$(nproc --all) -k .merlin terrat";
+    migrate.exec = "./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native migrate --verbosity=debug";
+    server.exec = "./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native server --verbosity=debug";
     release.exec = "make -j$(nproc --all) release_terrat_oss";
-    server.exec = "./build/release/terrat_oss/terrat_oss.native server";
     pg-build.exec = "make -j$(nproc --all) -k release_pgsql_test_client debug_pgsql_test_client";
-    pg-test.exec = "./build/debug/pgsql_test_client/pgsql_test_client.native 127.0.0.1 terrateam terrateam terrateam";
-    pg-con.exec = "psql -h 127.0.0.1 -p 5432 -U terrateam terrateam";
-    pg-ssl.exec = "psql 'host=127.0.0.1 dbname=terrateam user=terrateam sslmode=verify-ca sslcert=client.crt sslkey=client.key sslrootcert=root.crt'";
+    pg-test.exec = "./build/debug/pgsql_test_client/pgsql_test_client.native $DB_HOST $DB_NAME $DB_USER $DB_PASS";
+    pg-con.exec = "psql -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME";
   };
 
   env = {
-    NGROK_ENDPOINT = "http://ngrok:4040";
     DB_HOST = "127.0.0.1";
     DB_PORT = "5432";
     DB_USER = "terrateam";
     DB_PASS = "terrateam";
     DB_NAME = "terrateam";
     DB_CONNECT_TIMEOUT="10";
+    GITHUB_WEB_BASE_URL="https://github.com";
+    NGROK_ENDPOINT = "http://ngrok:4040";
+    OCAMLRUNPARAM="b";
     OPAMROOT = "${pwd}/.opam";
+    TERRAT_EDITION="ee";
     TERRAT_PYTHON_EXEC="${pkgs.python3}/bin/python3";
     TERRAT_TELEMETRY_LEVEL="disabled";
     TERRAT_STATEMENT_TIMEOUT="1s";
@@ -43,15 +46,9 @@ in
     eval $(opam env --switch=5.3.0)
   '';
 
-  dotenv = {
-    enable = true;
-    filename = ".env";
+  processes = {
+    ngrok.exec = "ngrok http --url=$TERRAT_API_URL --log=stdout 8080";
   };
-
-  #languages.ocaml = {
-  #  enable = true;
-  #  packages = pkgs.ocaml-ng.ocamlPackages_5_3;
-  #};
 
   services.nginx = {
     enable = true;
