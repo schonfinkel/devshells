@@ -15,7 +15,7 @@ in
   packages = tooling ++ [ pkgs.python3 ];
 
   scripts = {
-    build.exec = "make -j$(nproc --all) -k release_terrat";
+    build.exec = "make -j$(nproc --all) -k terrat";
     release.exec = "make -j$(nproc --all) release_terrat_oss";
     server.exec = "./build/release/terrat_oss/terrat_oss.native server";
     pg-build.exec = "make -j$(nproc --all) -k release_pgsql_test_client debug_pgsql_test_client";
@@ -31,8 +31,11 @@ in
     DB_USER = "terrateam";
     DB_PASS = "terrateam";
     DB_NAME = "terrateam";
+    DB_CONNECT_TIMEOUT="10";
     OPAMROOT = "${pwd}/.opam";
     TERRAT_PYTHON_EXEC="${pkgs.python3}/bin/python3";
+    TERRAT_TELEMETRY_LEVEL="disabled";
+    TERRAT_STATEMENT_TIMEOUT="1s";
   };
 
   enterShell = ''
@@ -71,7 +74,7 @@ in
 
       # Public facing portion of the app
       server {
-          listen       8080;
+          listen       8000;
 
           server_name  localhost;
           access_log   off;
@@ -174,7 +177,9 @@ in
     initialScript = ''
       CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
       CREATE ROLE postgres WITH SUPERUSER LOGIN PASSWORD 'postgres';
-      ALTER DATABASE terrateam OWNER TO postgres;
+      GRANT ALL PRIVILEGES ON DATABASE terrateam TO terrateam;
+      GRANT ALL ON SCHEMA public TO terrateam;
+      ALTER DATABASE terrateam OWNER TO terrateam;
     '';
   };
 }
