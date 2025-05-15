@@ -1,18 +1,149 @@
-{ pkgs, tooling, app_name }:
+{ devenv, pkgs, tooling }:
+
+let
+  databases = [
+    { name = "terrateam"; user = "terrateam"; pass = "terrateam"; }
+  ];
+  pwd = builtins.getEnv "PWD";
+  mainRepo = builtins.getEnv "MAIN_REPO";
+  terrat_api_url = builtins.getEnv "TERRAT_API_URL";
+  terrat_ui_base = builtins.getEnv "https://${terrat_api_url}/";
+  assetsSuffix = "build/release/terrat_ui_files/assets";
+  assetsPath = "${mainRepo}/code/${assetsSuffix}";
+in
 {
-  packages = tooling;
+  packages = tooling ++ [ pkgs.python3 ];
 
   scripts = {
-    build.exec = "make -j$(nproc --all) -k release_terrat";
+    build.exec = "make -j$(nproc --all) -k terrat";
+    release.exec = "make -j$(nproc --all) release_terrat_oss";
+    server.exec = "./build/release/terrat_oss/terrat_oss.native server";
     pg-build.exec = "make -j$(nproc --all) -k release_pgsql_test_client debug_pgsql_test_client";
     pg-test.exec = "./build/debug/pgsql_test_client/pgsql_test_client.native 127.0.0.1 terrateam terrateam terrateam";
     pg-con.exec = "psql -h 127.0.0.1 -p 5432 -U terrateam terrateam";
+    pg-ssl.exec = "psql 'host=127.0.0.1 dbname=terrateam user=terrateam sslmode=verify-ca sslcert=client.crt sslkey=client.key sslrootcert=root.crt'";
+  };
+
+  env = {
+    NGROK_ENDPOINT = "http://ngrok:4040";
+    DB_HOST = "127.0.0.1";
+    DB_PORT = "5432";
+    DB_USER = "terrateam";
+    DB_PASS = "terrateam";
+    DB_NAME = "terrateam";
+    DB_CONNECT_TIMEOUT="10";
+    OPAMROOT = "${pwd}/.opam";
+    TERRAT_PYTHON_EXEC="${pkgs.python3}/bin/python3";
+    TERRAT_TELEMETRY_LEVEL="disabled";
+    TERRAT_STATEMENT_TIMEOUT="1s";
   };
 
   enterShell = ''
     echo "Starting Development Environment..."
-    eval $(opam env --switch=5.1.1)
+    eval $(opam env --switch=5.3.0)
   '';
+
+  dotenv = {
+    enable = true;
+    filename = ".env";
+  };
+
+  #languages.ocaml = {
+  #  enable = true;
+  #  packages = pkgs.ocaml-ng.ocamlPackages_5_3;
+  #};
+
+  services.nginx = {
+    enable = true;
+    httpConfig = ''
+      default_type  application/octet-stream;
+      types_hash_bucket_size 128;
+      sendfile        on;
+
+      gzip  on;
+
+      # tell nginx to use the real client ip for all CIDRs
+      real_ip_header X-Forwarded-For;
+      set_real_ip_from 0.0.0.0/0;
+
+      keepalive_timeout  65;
+      limit_conn_zone $server_name zone=terrat_app:10m;
+      limit_req_zone $binary_remote_addr zone=client_limit:10m rate=1000r/s;
+
+      client_body_buffer_size 64k;
+
+      # Public facing portion of the app
+      server {
+          listen       8000;
+
+          server_name  localhost;
+          access_log   off;
+          server_tokens off;
+
+          location / {
+              set $cspNonce '$request_id';
+              sub_filter_once off;
+              sub_filter_types *;
+              sub_filter 'NGINX_CSP_NONCE' '$cspNonce';
+
+              root ${assetsPath};
+              index index.html index.htm;
+              try_files $uri $uri/ /index.html;
+              add_header Content-Security-Policy "default-src 'self' https://*.posthog.com; img-src 'self' https://avatars.githubusercontent.com; script-src 'self' 'nonce-$cspNonce' https://*.posthog.com; style-src 'self'; object-src 'none'; connect-src 'self' https://*.posthog.com";
+          }
+
+          location /assets {
+              root ${assetsPath};
+              tcp_nodelay on;
+          }
+
+          location /api {
+              # Limit the proxy to a lower number of concurrent requests to keep
+              # the underlying application happy.
+              limit_conn terrat_app 3000;
+              limit_req zone=client_limit burst=5000;
+
+              proxy_pass http://127.0.0.1:8180;
+              proxy_set_header X-Forwarded-For $remote_addr;
+              proxy_set_header X-Forwarded-Base "${terrat_ui_base}";
+
+              # Needed for returning response with large number of headers
+              proxy_buffer_size 128k;
+              proxy_buffers 4 256k;
+              proxy_busy_buffers_size 256k;
+
+              # This is the limit of how large we of input we allow.
+              client_max_body_size 50m;
+
+              # Add a long timeout to match the timeouts on the server side.
+              proxy_read_timeout 120;
+          }
+
+          # Turn off rate limit for health checks
+          location /health {
+              proxy_pass http://127.0.0.1:8180;
+              proxy_set_header X-Forwarded-For $remote_addr;
+          }
+
+          location /nginx_status {
+              stub_status on;
+              access_log off;
+              allow ::1;
+              allow 127.0.0.1;
+              allow 172.17.0.0/24;
+              deny all;
+          }
+
+          location /install {
+              return 301 https://github.com/apps/terrateam-action;
+          }
+
+          location /install/github {
+              return 301 https://github.com/apps/terrateam-action;
+          }
+      }
+    '';
+  };
 
   services.postgres = {
     enable = true;
@@ -34,17 +165,21 @@
       compute_query_id = "on";
       "pg_stat_statements.max" = 10000;
       "pg_stat_statements.track" = "all";
+      # SSL
+      #ssl = "on";
+      #ssl_cert_file = builtins.toString ./server.crt;
+      #ssl_key_file = builtins.toString ./server.key;
+      #ssl_ca_file = builtins.toString ./root.crt;
     };
-    initialDatabases = [
-      { name = app_name; user = app_name; pass = app_name; }
-    ];
+    initialDatabases = databases;
     port = 5432;
     listen_addresses = "127.0.0.1";
     initialScript = ''
       CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
       CREATE ROLE postgres WITH SUPERUSER LOGIN PASSWORD 'postgres';
-      CREATE ROLE test_user LOGIN PASSWORD 'postgres';
-      ALTER DATABASE ${app_name} OWNER TO postgres;
+      GRANT ALL PRIVILEGES ON DATABASE terrateam TO terrateam;
+      GRANT ALL ON SCHEMA public TO terrateam;
+      ALTER DATABASE terrateam OWNER TO terrateam;
     '';
   };
 }

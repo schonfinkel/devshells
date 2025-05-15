@@ -1,2 +1,5 @@
 *env*
 flake.lock
+
+# Except this one!
+!terrateam/flake.lock

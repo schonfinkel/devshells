@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -euxo pipefail
 
 export LANG="en_US.UTF-8"
-export OCAML_SWITCH_NAME="5.1.1"
+export OCAML_SWITCH_NAME="5.3.0"
 export OPAM_MONO_PATH=$PWD/opam-mono
+export TT_REPO="https://github.com/jjm-enterprises/opam-repository.git#terrateam"
 
-if [ ! -d $HOME/.opam ]; then
+if [ ! -d $PWD/.opam ]; then
   echo "Initializing opam..."
-  opam init --bare -n
+  opam init -ayn --bare
+fi
+
+if test -n "$(find $PWD/.opam -maxdepth 0 -empty)" ; then
+  echo "Initializing opam..."
+  opam init -ayn --bare
 fi
 
 # I always forget how to match grep
@@ -17,11 +23,14 @@ if opam switch list | grep -q $OCAML_SWITCH_NAME; then
   eval $(opam env --switch=$OCAML_SWITCH_NAME)
 else
   echo "Creating OPAM switch for $OCAML_SWITCH_NAME"
-  opam repository set-url --set-default default "https://github.com/jjm-enterprises/opam-repository.git#terrateam"
-  opam switch create -y 5.1.1
+  # Ignore this step for now
+  opam switch create -y $OCAML_SWITCH_NAME
   eval $(opam env --switch=$OCAML_SWITCH_NAME)
+  opam repository set-url --set-default default $TT_REPO
   opam repository add opam-acsl opam
+  eval $(opam env --switch=$OCAML_SWITCH_NAME)
   opam pin add -y containers 3.12
+  opam pin add -y cryptokit 1.20
   opam pin add -y pds 6.54 --no-depexts
   opam pin add -y hll 4.3 --no-depexts
 fi
@@ -37,17 +46,19 @@ if test ! -d $OPAM_MONO_PATH; then
       --opam-dir $OPAM_MONO_PATH \
       --tag 1.0 \
       --test-deps-as-regular-deps \
-      --url-override file://$PWD
-  opam update opam-mono
-  opam info monorepo
-  opam install -j$(nproc --all) -y --deps-only --no-depexts monorepo
-  cd code && pds -d && make -j$(nproc --all) release-terrat
+      --url-override file://$PWD \
+  && opam update \
+  && opam update opam-mono \
+  && opam upgrade \
+  && opam info monorepo \
+  && opam install -j$(nproc --all) -y --deps-only --no-depexts monorepo \
+  && pds -d && make -j$(nproc --all) release-terrat
 fi
 
 eval $(opam env --switch=$OCAML_SWITCH_NAME)
 
 # Now you'll need to install some of the tooling on your own...
-# opam install ocaml-lsp-server
-# opam install utop
-# opam install ocamlformat
-# opam install odig
+# opam install -y ocaml-lsp-server
+# opam install -y utop
+# opam install -y ocamlformat
+# opam install -y odig
