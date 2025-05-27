@@ -17,7 +17,9 @@ in
   scripts = {
     build.exec = "make -j$(nproc --all) -k .merlin terrat";
     migrate.exec = "./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native migrate --verbosity=debug";
-    server.exec = "./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native server --verbosity=debug";
+    server.exec = ''
+      ./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native server --verbosity=debug
+    '';
     release.exec = "make -j$(nproc --all) release_terrat_oss";
     pg-build.exec = "make -j$(nproc --all) -k release_pgsql_test_client debug_pgsql_test_client";
     pg-test.exec = "./build/debug/pgsql_test_client/pgsql_test_client.native $DB_HOST $DB_NAME $DB_USER $DB_PASS";
@@ -39,6 +41,7 @@ in
     TERRAT_PYTHON_EXEC="${pkgs.python3}/bin/python3";
     TERRAT_TELEMETRY_LEVEL="disabled";
     TERRAT_STATEMENT_TIMEOUT="1s";
+    TERRAT_TMP_PATH="/tmp/terrat";
   };
 
   enterShell = ''
