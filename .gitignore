@@ -3,3 +3,4 @@ flake.lock
 
 # Except this one!
 !terrateam/flake.lock
+!terrateam/.envrc

@@ -58,7 +58,4 @@ fi
 eval $(opam env --switch=$OCAML_SWITCH_NAME)
 
 # Now you'll need to install some of the tooling on your own...
-# opam install -y ocaml-lsp-server
-# opam install -y utop
-# opam install -y ocamlformat
-# opam install -y odig
+# opam install -y ocaml-lsp-server utop ocamlformat odig dot-merlin-reader
