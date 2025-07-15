@@ -15,7 +15,7 @@ in
   packages = tooling ++ [ pkgs.python3 ];
 
   scripts = {
-    build.exec = "make -j$(nproc --all) -k .merlin terrat";
+    build.exec = "make -j$(nproc --all) -k .merlin terrat || make terrat";
     migrate.exec = "./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native migrate --verbosity=debug";
     server.exec = ''
       ./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native server --verbosity=debug
@@ -48,6 +48,12 @@ in
     echo "Starting Development Environment..."
     eval $(opam env --switch=5.3.0)
   '';
+
+  languages.rust = {
+    enable = true;
+    # https://devenv.sh/reference/options/#languagesrustchannel
+    channel = "stable";
+  };
 
   processes = {
     ngrok.exec = "ngrok http --url=$TERRAT_API_URL --log=stdout 8080";
