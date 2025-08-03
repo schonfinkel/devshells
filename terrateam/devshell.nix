@@ -15,9 +15,13 @@ in
   packages = tooling ++ [ pkgs.python3 ];
 
   scripts = {
-    build.exec = "make -j$(nproc --all) -k .merlin terrat";
+    build.exec = "make -j$(nproc --all) .merlin release_terrat_oss release_terrat_ee debug_terrat_oss debug_terrat_ee";
+    build_s.exec = "make .merlin release_terrat_oss release_terrat_ee debug_terrat_oss debug_terrat_ee";
+    build_schema.exec = "make -j$(nproc --all) -k .merlin terrat-schemas";
+    format_schema.exec = "jq -S . < config-schema.json > /tmp/config-schema.json; mv /tmp/config-schema.json ./";
     migrate.exec = "./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native migrate --verbosity=debug";
     server.exec = ''
+      migrate
       ./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native server --verbosity=debug
     '';
     release.exec = "make -j$(nproc --all) release_terrat_oss";
@@ -48,6 +52,12 @@ in
     echo "Starting Development Environment..."
     eval $(opam env --switch=5.3.0)
   '';
+
+  languages.rust = {
+    enable = true;
+    # https://devenv.sh/reference/options/#languagesrustchannel
+    channel = "stable";
+  };
 
   processes = {
     ngrok.exec = "ngrok http --url=$TERRAT_API_URL --log=stdout 8080";

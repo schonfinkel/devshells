@@ -16,6 +16,11 @@
     };
 
     treefmt-nix.url = "github:numtide/treefmt-nix";
+
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs = { nixpkgs.follows = "nixpkgs"; };
+    };
   };
 
   outputs =

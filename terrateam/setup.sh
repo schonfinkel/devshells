@@ -33,6 +33,7 @@ else
   opam pin add -y cryptokit 1.20
   opam pin add -y pds 6.54 --no-depexts
   opam pin add -y hll 4.3 --no-depexts
+  opam pin add -y happy-eyeballs 0.6.0
 fi
 
 if test ! -d $OPAM_MONO_PATH; then
