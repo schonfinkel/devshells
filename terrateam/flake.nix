@@ -17,8 +17,8 @@
 
     treefmt-nix.url = "github:numtide/treefmt-nix";
 
-    fenix = {
-      url = "github:nix-community/fenix";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
       inputs = { nixpkgs.follows = "nixpkgs"; };
     };
   };
@@ -77,10 +77,8 @@
         ];
 
         darwinPkgs = with pkgs.darwin.apple_sdk.frameworks; [
-          CoreFoundation
-          CoreServices
         ];
-
+        
         tooling =
           (with pkgs; [
             bash
@@ -94,8 +92,9 @@
             libkqueue
             libpq
             libretls
+            postgresql
             ngrok
-            nodejs_23
+            nodejs
             opam
             sqlite
             yj

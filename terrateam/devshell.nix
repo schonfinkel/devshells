@@ -41,6 +41,7 @@ in
     NGROK_ENDPOINT = "http://ngrok:4040";
     OCAMLRUNPARAM="b";
     OPAMROOT = "${pwd}/.opam";
+    # TERRAT_TUNNEL_ENDPOINT = "http://ngrok:4040";
     TERRAT_EDITION="ee";
     TERRAT_PYTHON_EXEC="${pkgs.python3}/bin/python3";
     TERRAT_TELEMETRY_LEVEL="disabled";
@@ -60,7 +61,7 @@ in
   };
 
   processes = {
-    ngrok.exec = "ngrok http --url=$TERRAT_API_URL --log=stdout 8080";
+    tunnel.exec = "docker container run -e TERRATUNNEL_API_KEY=$TERRATUNNEL_API_KEY --network host ghcr.io/terrateamio/terratunnel:latest client --local-endpoint http://127.0.0.1:$TERRAT_PORT";
   };
 
   services.nginx = {
@@ -169,6 +170,11 @@ in
     hbaConf = builtins.readFile ./pg_hba.conf;
     settings = {
       shared_preload_libraries = "pg_stat_statements";
+      session_preload_libraries = "auto_explain";
+      "auto_explain.log_min_duration" = 150;
+      "auto_explain.log_analyze" = true;
+      log_min_duration_statement = 0;
+      log_statement = "all";
       # pg_stat_statements config, nested attr sets need to be
       # converted to strings, otherwise postgresql.conf fails
       # to be generated.
@@ -187,6 +193,7 @@ in
     initialScript = ''
       CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
       CREATE ROLE postgres WITH SUPERUSER LOGIN PASSWORD 'postgres';
+      CREATE ROLE mbenevides WITH SUPERUSER LOGIN;
       GRANT ALL PRIVILEGES ON DATABASE terrateam TO terrateam;
       GRANT ALL ON SCHEMA public TO terrateam;
       ALTER DATABASE terrateam OWNER TO terrateam;
