@@ -37,7 +37,12 @@ in
     DB_PASS = "terrateam";
     DB_NAME = "terrateam";
     DB_CONNECT_TIMEOUT="10";
+    # Public GitHub vars
     GITHUB_WEB_BASE_URL="https://github.com";
+    # Public GitLab vars
+    GITLAB_API_BASE_URL="https://gitlab.com/api";
+    GITLAB_WEB_BASE_URL="https://gitlab.com";
+    # Other Vars
     NGROK_ENDPOINT = "http://ngrok:4040";
     OCAMLRUNPARAM="b";
     OPAMROOT = "${pwd}/.opam";
