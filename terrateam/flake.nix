@@ -4,16 +4,16 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    flake-utils = {
-      url = "github:numtide/flake-utils/v1.0.0";
-    };
-
-    opam-nix.url = "github:tweag/opam-nix";
-
     devenv = {
       url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+    };
+
+    opam-nix.url = "github:tweag/opam-nix";
 
     treefmt-nix.url = "github:numtide/treefmt-nix";
 
@@ -28,82 +28,87 @@
       self,
       nixpkgs,
       devenv,
-      flake-utils,
+      flake-parts,
       opam-nix,
       treefmt-nix,
       ...
     }@inputs:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          config = {
-            allowUnfree = true;
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
+      perSystem =
+        { pkgs, system, ... }:
+        let
+          on = opam-nix.lib.${system};
+          # Local packages, detected from the package definition files in `./opam/`.
+          localPackagesQuery =
+            let
+              opam-lib = opam-nix.lib.${system};
+            in
+            pkgs.lib.mapAttrs (_: pkgs.lib.last)
+              (opam-lib.listRepo (opam-lib.makeOpamRepo ./.));
+
+          # Development package versions.
+          devPackagesQuery = {
+            ocaml-lsp-server = "*";
+            ocamlformat = "*";
+            utop = "*";
           };
-        };
 
-        on = opam-nix.lib.${system};
-        # Local packages, detected from the package definition files in `./opam/`.
-        localPackagesQuery =
-          let
-            opam-lib = opam-nix.lib.${system};
-          in
-          pkgs.lib.mapAttrs (_: pkgs.lib.last)
-            (opam-lib.listRepo (opam-lib.makeOpamRepo ./.));
+          # Development package versions, along with the base compiler tools, used
+          # when building the opam project with `opam-nix`.
+          allPackagesQuery = devPackagesQuery // {
+            # # Use the OCaml compiler from nixpkgs
+            # ocaml-system = "*";
+            # Use OCaml compiler from opam-repository
+            ocaml-base-compiler = "5.3.0";
+          };
 
-        # Development package versions.
-        devPackagesQuery = {
-          ocaml-lsp-server = "*";
-          ocamlformat = "*";
-          utop = "*";
-        };
+          linuxPkgs = with pkgs; [
+            icu
+            inotify-tools
+            pkg-config
+          ];
 
-        # Development package versions, along with the base compiler tools, used
-        # when building the opam project with `opam-nix`.
-        allPackagesQuery = devPackagesQuery // {
-          # # Use the OCaml compiler from nixpkgs
-          # ocaml-system = "*";
-          # Use OCaml compiler from opam-repository
-          ocaml-base-compiler = "5.3.0";
-        };
+          darwinPkgs = with pkgs.darwin.apple_sdk.frameworks; [
+          ];
+          
+          tooling =
+            (with pkgs; [
+              bash
+              clang
+              curl
+              fswatch
+              glibcLocales
+              gnumake
+              gmp
+              libffi
+              libkqueue
+              libpq
+              libretls
+              postgresql
+              nodejs
+              opam
+              sqlite
+              yj
+              zlib
+            ])
+            ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
+            ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
 
-        treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
-
-        linuxPkgs = with pkgs; [
-          icu
-          inotify-tools
-          pkg-config
-        ];
-
-        darwinPkgs = with pkgs.darwin.apple_sdk.frameworks; [
-        ];
-        
-        tooling =
-          (with pkgs; [
-            bash
-            clang
-            curl
-            fswatch
-            glibcLocales
-            gnumake
-            gmp
-            libffi
-            libkqueue
-            libpq
-            libretls
-            postgresql
-            ngrok
-            nodejs
-            opam
-            sqlite
-            yj
-            zlib
-          ])
-          ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
-          ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
-      in
+          treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
+        in
       {
+        # This sets `pkgs` to a nixpkgs with allowUnfree option set.
+        _module.args.pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+        };
+
         # nix build
         packages = {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
@@ -131,6 +136,9 @@
 
         # nix fmt
         formatter = treefmtEval.config.build.wrapper;
-      }
-    );
+      };
+
+      flake = {
+      };
+  };
 }

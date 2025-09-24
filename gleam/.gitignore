@@ -6,6 +6,5 @@ erl_crash.dump
 # Extras
 result
 .env
-.envrc
 .devenv
 .direnv
