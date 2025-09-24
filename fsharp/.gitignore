@@ -486,8 +486,6 @@ $RECYCLE.BIN/
 # -----
 # Extra
 # -----
-
 # Nix
-.envrc
 out
 result

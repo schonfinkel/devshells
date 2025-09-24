@@ -4,13 +4,13 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
 
-    flake-utils = {
-      url = "github:numtide/flake-utils/v1.0.0";
-    };
-
     devenv = {
       url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
     };
 
     treefmt-nix.url = "github:numtide/treefmt-nix";
@@ -21,30 +21,30 @@
       self,
       nixpkgs,
       devenv,
-      flake-utils,
+      flake-parts,
       treefmt-nix,
       ...
     }@inputs:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs {
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
+      perSystem =
+        { pkgs, system, ... }:
+        let
+          treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
+          app_name = "app";
+        in
+      {
+        # This sets `pkgs` to a nixpkgs with allowUnfree option set.
+        _module.args.pkgs = import nixpkgs {
           inherit system;
-          config = {
-            allowUnfree = true;
-          };
+          config.allowUnfree = true;
         };
 
-        treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
-
-        tooling = with pkgs; [
-          sqruff
-        ];
-
-        app_name = "app";
-
-      in
-      {
         # nix build
         packages = {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
@@ -59,7 +59,7 @@
               (
                 { pkgs, lib, ... }:
                 {
-                  packages = tooling;
+                  packages = [];
 
                   languages.elixir = {
                     enable = true;
@@ -81,6 +81,13 @@
                     ];
                     settings = {
                       shared_preload_libraries = "pg_stat_statements";
+                      session_preload_libraries = "auto_explain";
+                      "auto_explain.log_min_duration" = 150;
+                      "auto_explain.log_analyze" = true;
+                      log_min_duration_statement = 0;
+                      log_statement = "all";
+                      log_directory = "log";
+                      log_filename = "postgresql-%Y-%m-%d.log";
                       # pg_stat_statements config, nested attr sets need to be
                       # converted to strings, otherwise postgresql.conf fails
                       # to be generated.
@@ -106,6 +113,9 @@
 
         # nix fmt
         formatter = treefmtEval.config.build.wrapper;
-      }
-    );
+      };
+
+      flake = {
+      };
+  };
 }

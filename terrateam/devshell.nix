@@ -43,10 +43,8 @@ in
     GITLAB_API_BASE_URL="https://gitlab.com/api";
     GITLAB_WEB_BASE_URL="https://gitlab.com";
     # Other Vars
-    NGROK_ENDPOINT = "http://ngrok:4040";
     OCAMLRUNPARAM="b";
     OPAMROOT = "${pwd}/.opam";
-    # TERRAT_TUNNEL_ENDPOINT = "http://ngrok:4040";
     TERRAT_EDITION="ee";
     TERRAT_PYTHON_EXEC="${pkgs.python3}/bin/python3";
     TERRAT_TELEMETRY_LEVEL="disabled";
@@ -180,6 +178,8 @@ in
       "auto_explain.log_analyze" = true;
       log_min_duration_statement = 0;
       log_statement = "all";
+      log_directory = "log";
+      log_filename = "postgresql-%Y-%m-%d.log";
       # pg_stat_statements config, nested attr sets need to be
       # converted to strings, otherwise postgresql.conf fails
       # to be generated.
@@ -192,6 +192,7 @@ in
       #ssl_key_file = builtins.toString ./server.key;
       #ssl_ca_file = builtins.toString ./root.crt;
     };
+
     initialDatabases = databases;
     port = 5432;
     listen_addresses = "127.0.0.1";

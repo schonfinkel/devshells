@@ -4,13 +4,13 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
 
-    flake-utils = {
-      url = "github:numtide/flake-utils/v1.0.0";
-    };
-
     devenv = {
       url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
     };
 
     treefmt-nix.url = "github:numtide/treefmt-nix";
@@ -21,31 +21,30 @@
       self,
       nixpkgs,
       devenv,
-      flake-utils,
+      flake-parts,
       treefmt-nix,
       ...
     }@inputs:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs {
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
+      perSystem =
+        { pkgs, system, ... }:
+        let
+          treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
+          _app_name = "app";
+        in
+      {
+        # This sets `pkgs` to a nixpkgs with allowUnfree option set.
+        _module.args.pkgs = import nixpkgs {
           inherit system;
-          config = {
-            allowUnfree = true;
-          };
+          config.allowUnfree = true;
         };
 
-        treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
-
-        tooling = with pkgs; [
-          dbmate
-          just
-          sqruff
-        ];
-
-        _app_name = "app";
-      in
-      {
         # nix build
         packages = {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
@@ -53,19 +52,42 @@
 
         # Shells
         devShells = {
-          # nix develop --impure
+          # `nix develop --impure`
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [
-              (import ./devshell.nix {
-                inherit pkgs tooling;
-              })
+              (
+                { pkgs, lib, ... }:
+                {
+                  packages = with pkgs; [
+                    just
+                  ];
+
+                  languages.gleam = {
+                    enable = true;
+                  };
+                
+                  scripts = {
+                    build.exec = "just build";
+                    db-up.exec = "just db-up";
+                    db-down.exec = "just db-down";
+                    db-reset.exec = "just db-reset";
+                  };
+                
+                  enterShell = ''
+                    echo "Starting Development Environment..."
+                  '';
+                }
+              )
             ];
           };
         };
 
         # nix fmt
         formatter = treefmtEval.config.build.wrapper;
-      }
-    );
+      };
+
+      flake = {
+      };
+  };
 }
