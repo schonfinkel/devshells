@@ -10,7 +10,7 @@
 
   languages.dotnet = {
     enable = true;
-    package = dotnet;
+    # package = dotnet;
   };
 
   scripts = {

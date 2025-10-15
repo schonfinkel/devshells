@@ -8,15 +8,15 @@ let
   mainRepo = builtins.getEnv "MAIN_REPO";
   terrat_api_url = builtins.getEnv "TERRAT_API_URL";
   terrat_ui_base = builtins.getEnv "https://${terrat_api_url}/";
-  assetsSuffix = "build/release/terrat_ui_files/assets";
+  assetsSuffix = "build/debug/iris/dist";
   assetsPath = "${mainRepo}/code/${assetsSuffix}";
 in
 {
   packages = tooling ++ [ pkgs.python3 ];
 
   scripts = {
-    build.exec = "make -j$(nproc --all) .merlin release_terrat_oss release_terrat_ee debug_terrat_oss debug_terrat_ee";
-    build_s.exec = "make .merlin release_terrat_oss release_terrat_ee debug_terrat_oss debug_terrat_ee";
+    build.exec = "make -j$(nproc --all) .merlin terrat";
+    build_s.exec = "make .merlin terrat";
     build_schema.exec = "make -j$(nproc --all) -k .merlin terrat-schemas";
     format_schema.exec = "jq -S . < config-schema.json > /tmp/config-schema.json; mv /tmp/config-schema.json ./";
     migrate.exec = "./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native migrate --verbosity=debug";
@@ -37,11 +37,6 @@ in
     DB_PASS = "terrateam";
     DB_NAME = "terrateam";
     DB_CONNECT_TIMEOUT="10";
-    # Public GitHub vars
-    GITHUB_WEB_BASE_URL="https://github.com";
-    # Public GitLab vars
-    GITLAB_API_BASE_URL="https://gitlab.com/api";
-    GITLAB_WEB_BASE_URL="https://gitlab.com";
     # Other Vars
     OCAMLRUNPARAM="b";
     OPAMROOT = "${pwd}/.opam";
@@ -64,7 +59,7 @@ in
   };
 
   processes = {
-    tunnel.exec = "docker container run -e TERRATUNNEL_API_KEY=$TERRATUNNEL_API_KEY --network host ghcr.io/terrateamio/terratunnel:latest client --local-endpoint http://127.0.0.1:$TERRAT_PORT";
+    tunnel.exec = "docker container run -e TERRATUNNEL_API_KEY=$TERRATUNNEL_API_KEY --network host ghcr.io/terrateamio/terratunnel:latest client --local-endpoint http://127.0.0.1:8000";
   };
 
   services.nginx = {
@@ -117,7 +112,7 @@ in
               limit_conn terrat_app 3000;
               limit_req zone=client_limit burst=5000;
 
-              proxy_pass http://127.0.0.1:8180;
+              proxy_pass http://127.0.0.1:8080;
               proxy_set_header X-Forwarded-For $remote_addr;
               proxy_set_header X-Forwarded-Base "${terrat_ui_base}";
 
@@ -135,7 +130,7 @@ in
 
           # Turn off rate limit for health checks
           location /health {
-              proxy_pass http://127.0.0.1:8180;
+              proxy_pass http://127.0.0.1:8080;
               proxy_set_header X-Forwarded-For $remote_addr;
           }
 
@@ -146,14 +141,6 @@ in
               allow 127.0.0.1;
               allow 172.17.0.0/24;
               deny all;
-          }
-
-          location /install {
-              return 301 https://github.com/apps/terrateam-action;
-          }
-
-          location /install/github {
-              return 301 https://github.com/apps/terrateam-action;
           }
       }
     '';
