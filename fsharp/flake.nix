@@ -29,8 +29,6 @@
       systems = [
         "x86_64-linux"
         "aarch64-linux"
-        "aarch64-darwin"
-        "x86_64-darwin"
       ];
       perSystem =
         { pkgs, system, ... }:
@@ -56,82 +54,80 @@
               just
 
               # for dotnet
-              netcoredbg
               fsautocomplete
               fantomas
             ]
-            ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
-            ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
+            ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs;
 
           app_name = "app";
           app_version = "0.1.0";
           treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
         in
-      {
-        # This sets `pkgs` to a nixpkgs with allowUnfree option set.
-        _module.args.pkgs = import nixpkgs {
-          inherit system;
-          config.allowUnfree = true;
-        };
-
-        # nix build
-        packages = {
-          devenv-up = self.devShells.${system}.default.config.procfileScript;
-
-          # `nix build`
-          default = pkgs.buildDotnetModule {
-            pname = app_name;
-            version = app_version;
-            src = ./.;
-            projectFile = "src/App/App.fsproj";
-            nugetDeps = ./deps.json;
-            dotnet-sdk = dotnet;
-            dotnet-runtime = dotnet;
+        {
+          # This sets `pkgs` to a nixpkgs with allowUnfree option set.
+          _module.args.pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
           };
 
-          # nix build .#dockerImage
-          dockerImage = pkgs.dockerTools.buildLayeredImage {
-            name = app_name;
-            tag = app_version;
-            created = "now";
-            contents = [ default ];
-            config = {
-              Cmd = [
-                "${default}/bin/App"
+          # nix build
+          packages = rec {
+            devenv-up = self.devShells.${system}.default.config.procfileScript;
+
+            # `nix build`
+            default = pkgs.buildDotnetModule {
+              pname = app_name;
+              version = app_version;
+              src = ./.;
+              projectFile = "src/App/App.fsproj";
+              nugetDeps = ./deps.json;
+              dotnet-sdk = dotnet;
+              dotnet-runtime = dotnet;
+            };
+
+            # nix build .#dockerImage
+            dockerImage = pkgs.dockerTools.buildLayeredImage {
+              name = app_name;
+              tag = app_version;
+              created = "now";
+              contents = [ default ];
+              config = {
+                Cmd = [
+                  "${default}/bin/App"
+                ];
+              };
+            };
+          };
+
+          # Shells
+          devShells = {
+            # nix develop .#ci
+            # reduce the number of packages to the bare minimum needed for CI
+            ci = pkgs.mkShell {
+              buildInputs = dotnet ++ tooling;
+            };
+
+            # nix develop --impure
+            default = devenv.lib.mkShell {
+              inherit inputs pkgs;
+              modules = [
+                (import ./devshell.nix {
+                  inherit
+                    pkgs
+                    dotnet
+                    tooling
+                    app_name
+                    ;
+                })
               ];
             };
           };
+
+          # nix fmt
+          formatter = treefmtEval.config.build.wrapper;
         };
-
-        # Shells
-        devShells = {
-          # nix develop .#ci
-          # reduce the number of packages to the bare minimum needed for CI
-          ci = pkgs.mkShell {
-            buildInputs = dotnet ++ tooling;
-          };
-
-          # nix develop --impure
-          default = devenv.lib.mkShell {
-            inherit inputs pkgs;
-            modules = [
-              (import ./devshell.nix {
-                inherit
-                  pkgs
-                  dotnet
-                  tooling
-                  app_name
-                  ;
-              })
-            ];
-          };
-        };
-
-        # nix fmt
-        formatter = treefmtEval.config.build.wrapper;
-      };
 
       flake = {
       };
-  };
+    };
 }
