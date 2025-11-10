@@ -12,7 +12,7 @@ if [ ! -d $PWD/.opam ]; then
   opam init -ayn --bare
 fi
 
-if test -n "$(find $PWD/.opam -maxdepth 0 -empty)" ; then
+if test -n "$(find $PWD/.opam -maxdepth 0 -empty)"; then
   echo "Initializing opam..."
   opam init -ayn --bare
 fi
@@ -35,6 +35,7 @@ else
   opam pin add -y hll 4.3 --no-depexts
   opam pin add -y happy-eyeballs 0.6.0
   opam pin add -y dynamic_gc 0.2.0
+  opam pin add -y cmdliner 1.3.0
 fi
 
 if test ! -d $OPAM_MONO_PATH; then
@@ -48,13 +49,13 @@ if test ! -d $OPAM_MONO_PATH; then
       --opam-dir $OPAM_MONO_PATH \
       --tag 1.0 \
       --test-deps-as-regular-deps \
-      --url-override file://$PWD \
-  && opam update \
-  && opam update opam-mono \
-  && opam upgrade \
-  && opam info monorepo \
-  && opam install -j$(nproc --all) -y --deps-only --no-depexts monorepo \
-  && pds -d && make -j$(nproc --all) release-terrat
+      --url-override file://$PWD &&
+    opam update &&
+    opam update opam-mono &&
+    opam upgrade &&
+    opam info monorepo &&
+    opam install -j$(nproc --all) -y --deps-only --no-depexts monorepo &&
+    pds -d && make -j$(nproc --all) release-terrat
 fi
 
 eval $(opam env --switch=$OCAML_SWITCH_NAME)

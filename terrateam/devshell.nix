@@ -1,8 +1,16 @@
-{ devenv, pkgs, tooling }:
+{
+  devenv,
+  pkgs,
+  tooling,
+}:
 
 let
   databases = [
-    { name = "terrateam"; user = "terrateam"; pass = "terrateam"; }
+    {
+      name = "terrateam";
+      user = "terrateam";
+      pass = "terrateam";
+    }
   ];
   pwd = builtins.getEnv "PWD";
   mainRepo = builtins.getEnv "MAIN_REPO";
@@ -12,7 +20,12 @@ let
   assetsPath = "${mainRepo}/code/${assetsSuffix}";
 in
 {
-  packages = tooling ++ [ pkgs.python3 ];
+  packages =
+    tooling
+    ++ [
+      pkgs.liburing
+      pkgs.python3
+    ];
 
   scripts = {
     build.exec = "make -j$(nproc --all) .merlin terrat";
@@ -25,6 +38,7 @@ in
       ./build/debug/terrat_$TERRAT_EDITION/terrat_$TERRAT_EDITION.native server --verbosity=debug
     '';
     release.exec = "make -j$(nproc --all) release_terrat_oss";
+    ttm.exec = "${mainRepo}/code/build/debug/ttm/ttm.native";
     pg-build.exec = "make -j$(nproc --all) -k release_pgsql_test_client debug_pgsql_test_client";
     pg-test.exec = "./build/debug/pgsql_test_client/pgsql_test_client.native $DB_HOST $DB_NAME $DB_USER $DB_PASS";
     pg-con.exec = "psql -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME";
@@ -36,19 +50,31 @@ in
     DB_USER = "terrateam";
     DB_PASS = "terrateam";
     DB_NAME = "terrateam";
-    DB_CONNECT_TIMEOUT="10";
+    DB_CONNECT_TIMEOUT = "10";
+    # Static Nix crap
+    # LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath staticLibs}:$LD_LIBRARY_PATH";
+    # Ensure pkg-config can find the libraries
+    # PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig:${pkgs.zlib.dev}/lib/pkgconfig";
+    # Add library paths for static linking
+    # NIX_LDFLAGS = [
+    #   "-L${pkgs.pkgsStatic.curl.out}/lib"
+    #   "-L${pkgs.glibc.static}/lib"
+    #   "-L${pkgs.pkgsStatic.openssl.out}/lib"
+    #   "-L${pkgs.zlib.static}/lib"
+    # ];
     # Other Vars
-    OCAMLRUNPARAM="b";
+    OCAMLRUNPARAM = "b";
     OPAMROOT = "${pwd}/.opam";
-    TERRAT_EDITION="ee";
-    TERRAT_PYTHON_EXEC="${pkgs.python3}/bin/python3";
-    TERRAT_TELEMETRY_LEVEL="disabled";
-    TERRAT_STATEMENT_TIMEOUT="1s";
-    TERRAT_TMP_PATH="/tmp/terrat";
+    TERRAT_EDITION = "ee";
+    TERRAT_PYTHON_EXEC = "${pkgs.python3}/bin/python3";
+    TERRAT_TELEMETRY_LEVEL = "disabled";
+    TERRAT_STATEMENT_TIMEOUT = "1s";
+    TERRAT_TMP_PATH = "/tmp/terrat";
   };
 
   enterShell = ''
     echo "Starting Development Environment..."
+    export NIX_LDFLAGS="-L${pkgs.glibc}/lib $NIX_LDFLAGS"
     eval $(opam env --switch=5.3.0)
   '';
 
@@ -75,7 +101,7 @@ in
       real_ip_header X-Forwarded-For;
       set_real_ip_from 0.0.0.0/0;
 
-      keepalive_timeout  65;
+      keepalive_timeout 600;
       limit_conn_zone $server_name zone=terrat_app:10m;
       limit_req_zone $binary_remote_addr zone=client_limit:10m rate=1000r/s;
 
@@ -148,7 +174,7 @@ in
 
   services.postgres = {
     enable = true;
-    package = pkgs.postgresql_17;
+    package = pkgs.postgresql_18;
     extensions = ext: [
       ext.periods
       ext.pg_cron
@@ -178,6 +204,21 @@ in
       #ssl_cert_file = builtins.toString ./server.crt;
       #ssl_key_file = builtins.toString ./server.key;
       #ssl_ca_file = builtins.toString ./root.crt;
+    }
+    // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+      max_connections = 200;
+      # Async IO, io_uring or workers
+      # For io_uring method (Linux only, requires liburing)
+      io_method = "io_uring";
+      # Adjust shared buffers
+      shared_buffers = "2GB";
+      # Increase work memory for large operations
+      work_mem = "16MB";
+      # Enable huge pages if available
+      huge_pages = "try";
+      # Adjust I/O concurrency settings
+      effective_io_concurrency = 16;
+      maintenance_io_concurrency = 16;
     };
 
     initialDatabases = databases;

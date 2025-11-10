@@ -19,7 +19,9 @@
 
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
-      inputs = { nixpkgs.follows = "nixpkgs"; };
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+      };
     };
   };
 
@@ -49,8 +51,7 @@
             let
               opam-lib = opam-nix.lib.${system};
             in
-            pkgs.lib.mapAttrs (_: pkgs.lib.last)
-              (opam-lib.listRepo (opam-lib.makeOpamRepo ./.));
+            pkgs.lib.mapAttrs (_: pkgs.lib.last) (opam-lib.listRepo (opam-lib.makeOpamRepo ./.));
 
           # Development package versions.
           devPackagesQuery = {
@@ -76,69 +77,95 @@
 
           darwinPkgs = with pkgs.darwin.apple_sdk.frameworks; [
           ];
-          
+
+          # ocamlWithDynamic = pkgs.ocaml.overrideAttrs (old: {
+          #   configureFlags = old.configureFlags or [] ++ [ "--disable-static" ];
+          # });
+
+          staticLibs = with pkgs.pkgsStatic; [
+            brotli
+            curl
+            libidn2
+            libffi
+            libpsl
+            libssh2
+            libunistring
+            nghttp2
+            nghttp3
+            ngtcp2
+            openssl
+            krb5
+            zstd
+          ];
+
           tooling =
             (with pkgs; [
               bash
               clang
-              curl
               fswatch
+              glibc
+              glibc.static
               glibcLocales
               gnumake
               gmp
-              libffi
+              libidn2
               libkqueue
               libpq
+              libpsl
               libretls
-              postgresql
               nodejs
+              postgresql
               opam
               sqlite
               yj
-              zlib
             ])
+            ++ staticLibs
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxPkgs
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux darwinPkgs;
 
           treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
         in
-      {
-        # This sets `pkgs` to a nixpkgs with allowUnfree option set.
-        _module.args.pkgs = import nixpkgs {
-          inherit system;
-          config.allowUnfree = true;
-        };
-
-        # nix build
-        packages = {
-          devenv-up = self.devShells.${system}.default.config.procfileScript;
-        };
-
-        # Shells
-        devShells = {
-          # nix develop .#ci
-          # reduce the number of packages to the bare minimum needed for CI
-          ci = pkgs.mkShell {
-            buildInputs = tooling;
+        {
+          # This sets `pkgs` to a nixpkgs with allowUnfree option set.
+          _module.args.pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
           };
 
-          # nix develop --impure
-          default = devenv.lib.mkShell {
-            inherit inputs pkgs;
-            modules = [
-              (import ./devshell.nix { 
-                inherit devenv pkgs tooling;
-              })
-            ];
+          # nix build
+          packages = {
+            devenv-up = self.devShells.${system}.default.config.procfileScript;
           };
 
-        };
+          # Shells
+          devShells = {
+            # nix develop .#ci
+            # reduce the number of packages to the bare minimum needed for CI
+            ci = pkgs.mkShell {
+              buildInputs = tooling;
+            };
 
-        # nix fmt
-        formatter = treefmtEval.config.build.wrapper;
-      };
+            # nix develop --impure
+            default = devenv.lib.mkShell {
+              inherit inputs pkgs;
+              modules = [
+                (import ./devshell.nix {
+                  inherit
+                    devenv
+                    pkgs
+                    tooling
+                    ;
+                })
+              ];
+            };
+
+          };
+
+          # nix fmt
+          formatter = treefmtEval.config.build.wrapper;
+        };
 
       flake = {
       };
-  };
+    };
 }
